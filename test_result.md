@@ -305,3 +305,5 @@ agent_communication:
     message: "Completed comprehensive backend testing. All backend components are working correctly. Successfully tested database connection, employee endpoints, dashboard data, HR requests, policy management, AI chat integration, vacation balance, and salary payments. No issues found."
   - agent: "testing"
     message: "Completed comprehensive frontend testing. Most components are working correctly: Dashboard, HR Services, and AI Chat Assistant all function properly with real data. The Policy Center component has issues - it shows 'Failed to load policies' error and console logs show API errors related to policy not found. This component needs fixing. All other frontend-backend integrations are working as expected."
+  - agent: "main"
+    message: "Fixed Policy Center issue. The problem was FastAPI route ordering - the '/policies/{policy_id}' route was matching before '/policies/categories', causing 'categories' to be treated as a policy_id. Moved categories route before parameterized route. All endpoints now working correctly."
