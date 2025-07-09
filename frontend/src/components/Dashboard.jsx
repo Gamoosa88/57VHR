@@ -17,6 +17,7 @@ import { Button } from './ui/button';
 import { dashboardApi, employeeApi } from '../services/api';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -25,6 +26,25 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const handleQuickAction = (action) => {
+    switch (action) {
+      case 'request-leave':
+        navigate('/hr-services');
+        break;
+      case 'submit-expense':
+        navigate('/hr-services');
+        break;
+      case 'view-policies':
+        navigate('/policy-center');
+        break;
+      case 'ask-ai':
+        navigate('/ai-assistant');
+        break;
+      default:
+        break;
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
