@@ -307,3 +307,5 @@ agent_communication:
     message: "Fixed backend server startup issues and database connection. Ready for comprehensive backend testing of all HR API endpoints and AI integration. OpenAI API key is available in environment."
   - agent: "testing"
     message: "Completed comprehensive backend testing. All backend components are working correctly. Successfully tested database connection, employee endpoints, dashboard data, HR requests, policy management, AI chat integration, vacation balance, and salary payments. No issues found."
+  - agent: "testing"
+    message: "Completed comprehensive frontend testing. Most components are working correctly: Dashboard, HR Services, and AI Chat Assistant all function properly with real data. The Policy Center component has issues - it shows 'Failed to load policies' error and console logs show API errors related to policy not found. This component needs fixing. All other frontend-backend integrations are working as expected."
