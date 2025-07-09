@@ -182,6 +182,30 @@ backend:
       - working: true
         agent: "testing"
         comment: "Policy Management System tested and working correctly. Successfully retrieved all policies, fetched policy by ID, and tested category filtering and search functionality."
+        
+  - task: "Vacation Balance"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Vacation balance endpoint tested and working correctly. Successfully retrieved vacation balance for employee EMP001 with correct data structure and values."
+        
+  - task: "Salary Payments"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Salary payments endpoint tested and working correctly. Successfully retrieved salary payment history for employee EMP001 with correct data structure and values."
 
 frontend:
   - task: "Frontend-Backend Integration"
