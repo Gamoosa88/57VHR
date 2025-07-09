@@ -10,6 +10,10 @@ from datetime import datetime, timedelta
 import asyncio
 
 # Import models and services
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from models import *
 from database import *
 from ai_service import AIHRAssistant
