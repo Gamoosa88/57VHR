@@ -1,25 +1,26 @@
+from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+# Load environment variables first, before other imports
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
+
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
-import os
 import logging
-from pathlib import Path
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import asyncio
 
 # Import models and services
 import sys
-import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from models import *
 from database import *
 from ai_service import AIHRAssistant
-
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
