@@ -256,6 +256,9 @@ test_plan:
     - "Database Connection and Models"
     - "HR API Endpoints"
     - "AI Chat Assistant Integration"
+    - "Policy Management System"
+    - "Vacation Balance"
+    - "Salary Payments"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
