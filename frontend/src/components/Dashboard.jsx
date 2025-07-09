@@ -30,16 +30,16 @@ const Dashboard = () => {
   const handleQuickAction = (action) => {
     switch (action) {
       case 'request-leave':
-        navigate('/hr-services');
+        navigate('/services');
         break;
       case 'submit-expense':
-        navigate('/hr-services');
+        navigate('/services');
         break;
       case 'view-policies':
-        navigate('/policy-center');
+        navigate('/policies');
         break;
       case 'ask-ai':
-        navigate('/ai-assistant');
+        navigate('/chat');
         break;
       default:
         break;
