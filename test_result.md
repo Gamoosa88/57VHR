@@ -291,14 +291,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Backend Server Startup"
-    - "Database Connection and Models"
-    - "HR API Endpoints"
-    - "AI Chat Assistant Integration"
-    - "Policy Management System"
-    - "Vacation Balance"
-    - "Salary Payments"
-  stuck_tasks: []
+    - "Policy Center Component"
+  stuck_tasks:
+    - "Policy Center Component"
   test_all: false
   test_priority: "high_first"
 
