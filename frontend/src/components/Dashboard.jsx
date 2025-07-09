@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   Clock, 
@@ -7,15 +7,40 @@ import {
   FileText,
   TrendingUp,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { mockDashboardData, mockEmployee } from '../data/mockData';
+import { dashboardApi, employeeApi } from '../services/api';
 
 const Dashboard = () => {
-  const { vacationDaysLeft, pendingRequests, lastSalaryPayment, businessTripStatus, upcomingEvents } = mockDashboardData;
+  const [dashboardData, setDashboardData] = useState(null);
+  const [employee, setEmployee] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [dashData, empData] = await Promise.all([
+        dashboardApi.getDashboardData(),
+        employeeApi.getCurrentEmployee()
+      ]);
+      setDashboardData(dashData);
+      setEmployee(empData);
+    } catch (err) {
+      setError('Failed to load dashboard data');
+      console.error('Dashboard error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
@@ -42,13 +67,42 @@ const Dashboard = () => {
     });
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
+          <p className="text-red-600">{error}</p>
+          <Button onClick={fetchDashboardData} className="mt-4">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboardData || !employee) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Welcome Header */}
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Welcome back, {mockEmployee.name.split(' ')[0]}! 👋
+            Welcome back, {employee.name.split(' ')[0]}! 👋
           </h1>
           <p className="text-lg text-gray-600">
             Here's what's happening with your HR activities
@@ -66,12 +120,12 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-1">{vacationDaysLeft}</div>
+              <div className="text-3xl font-bold mb-1">{dashboardData.vacationDaysLeft}</div>
               <p className="text-green-100">Days remaining</p>
               <div className="mt-2 bg-green-400 bg-opacity-30 rounded-full h-2">
                 <div 
                   className="bg-white h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${(vacationDaysLeft / 30) * 100}%` }}
+                  style={{ width: `${(dashboardData.vacationDaysLeft / 30) * 100}%` }}
                 ></div>
               </div>
             </CardContent>
@@ -86,12 +140,12 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-1">{pendingRequests.length}</div>
+              <div className="text-3xl font-bold mb-1">{dashboardData.pendingRequests.length}</div>
               <p className="text-orange-100">Awaiting approval</p>
-              {pendingRequests.length > 0 && (
+              {dashboardData.pendingRequests.length > 0 && (
                 <div className="mt-2 flex items-center space-x-1">
                   <AlertCircle className="h-4 w-4" />
-                  <span className="text-sm">{pendingRequests[0].type}</span>
+                  <span className="text-sm">{dashboardData.pendingRequests[0].type}</span>
                 </div>
               )}
             </CardContent>
@@ -106,11 +160,11 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold mb-1">{formatCurrency(lastSalaryPayment.amount)}</div>
-              <p className="text-blue-100">{formatDate(lastSalaryPayment.date)}</p>
+              <div className="text-2xl font-bold mb-1">{formatCurrency(dashboardData.lastSalaryPayment.amount)}</div>
+              <p className="text-blue-100">{formatDate(dashboardData.lastSalaryPayment.date)}</p>
               <Badge className="mt-2 bg-blue-400 bg-opacity-30 text-white border-blue-300">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
-                {lastSalaryPayment.status}
+                {dashboardData.lastSalaryPayment.status}
               </Badge>
             </CardContent>
           </Card>
@@ -124,10 +178,12 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-lg font-bold mb-1">{businessTripStatus.current}</div>
-              <p className="text-purple-100 text-sm">{formatDate(businessTripStatus.startDate)}</p>
+              <div className="text-lg font-bold mb-1">{dashboardData.businessTripStatus.current}</div>
+              <p className="text-purple-100 text-sm">
+                {dashboardData.businessTripStatus.startDate && formatDate(dashboardData.businessTripStatus.startDate)}
+              </p>
               <Badge className="mt-2 bg-purple-400 bg-opacity-30 text-white border-purple-300">
-                {businessTripStatus.status}
+                {dashboardData.businessTripStatus.status}
               </Badge>
             </CardContent>
           </Card>
@@ -145,7 +201,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {pendingRequests.map((request) => (
+                {dashboardData.pendingRequests.map((request) => (
                   <div key={request.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                     <div className="flex-1">
                       <h4 className="font-medium text-gray-900">{request.type}</h4>
@@ -164,7 +220,7 @@ const Dashboard = () => {
                     </Badge>
                   </div>
                 ))}
-                {pendingRequests.length === 0 && (
+                {dashboardData.pendingRequests.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <p>No pending requests</p>
@@ -184,7 +240,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {upcomingEvents.map((event, index) => (
+                {dashboardData.upcomingEvents.map((event, index) => (
                   <div key={index} className="flex items-center space-x-3 p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg">
                     <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                     <div className="flex-1">

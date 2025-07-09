@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   Heart, 
@@ -7,7 +7,8 @@ import {
   CreditCard, 
   Plane,
   Plus,
-  Send
+  Send,
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -16,54 +17,55 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Calendar as CalendarComponent } from './ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { mockHRRequests, mockFormSubmissions } from '../data/mockData';
+import { hrRequestsApi } from '../services/api';
 import { useToast } from '../hooks/use-toast';
 
 const HRServices = () => {
   const [activeService, setActiveService] = useState(null);
   const [formData, setFormData] = useState({});
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
   const services = [
     {
-      id: 'vacation',
+      id: 'Vacation Leave',
       title: 'Vacation Leave',
       icon: Calendar,
       description: 'Request annual vacation leave',
       color: 'from-blue-500 to-blue-600'
     },
     {
-      id: 'sick',
-      title: 'Sick Leave', 
+      id: 'Sick Leave', 
+      title: 'Sick Leave',
       icon: Heart,
       description: 'Request medical leave',
       color: 'from-red-500 to-red-600'
     },
     {
-      id: 'wfh',
+      id: 'Work from Home',
       title: 'Work from Home',
       icon: Home,
       description: 'Request remote work day',
       color: 'from-green-500 to-green-600'
     },
     {
-      id: 'certificate',
+      id: 'Salary Certificate',
       title: 'Salary Certificate',
       icon: FileText,
       description: 'Request salary verification',
       color: 'from-purple-500 to-purple-600'
     },
     {
-      id: 'expense',
+      id: 'Expense Reimbursement',
       title: 'Expense Reimbursement',
       icon: CreditCard,
       description: 'Submit expense claims',
       color: 'from-orange-500 to-orange-600'
     },
     {
-      id: 'travel',
+      id: 'Business Trip',
       title: 'Business Trip',
       icon: Plane,
       description: 'Request business travel',
@@ -71,29 +73,69 @@ const HRServices = () => {
     }
   ];
 
-  const handleFormSubmit = (e) => {
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    try {
+      setLoading(true);
+      const data = await hrRequestsApi.getRequests();
+      setRequests(data);
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load requests",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     
-    // Mock form submission
-    setTimeout(() => {
-      const response = Math.random() > 0.1 ? mockFormSubmissions.success : mockFormSubmissions.error;
+    try {
+      setSubmitting(true);
       
-      if (response.status === 'Submitted Successfully') {
-        toast({
-          title: "Request Submitted",
-          description: response.message,
-          variant: "default"
-        });
-        setActiveService(null);
-        setFormData({});
-      } else {
-        toast({
-          title: "Submission Failed",
-          description: response.message,
-          variant: "destructive"
-        });
-      }
-    }, 1000);
+      // Prepare request data
+      const requestData = {
+        type: activeService,
+        ...formData
+      };
+      
+      await hrRequestsApi.createRequest(requestData);
+      
+      toast({
+        title: "Request Submitted",
+        description: "Your request has been submitted successfully and is pending approval.",
+        variant: "default"
+      });
+      
+      setActiveService(null);
+      setFormData({});
+      fetchRequests(); // Refresh the requests list
+      
+    } catch (error) {
+      console.error('Error submitting request:', error);
+      toast({
+        title: "Submission Failed",
+        description: "There was an error submitting your request. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   const renderForm = () => {
@@ -111,7 +153,7 @@ const HRServices = () => {
         <CardContent>
           <form onSubmit={handleFormSubmit} className="space-y-6">
             {/* Common fields for all leave types */}
-            {(activeService === 'vacation' || activeService === 'sick') && (
+            {(activeService === 'Vacation Leave' || activeService === 'Sick Leave') && (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -121,7 +163,7 @@ const HRServices = () => {
                       type="date"
                       required
                       className="mt-1"
-                      onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                      onChange={(e) => setFormData({...formData, start_date: e.target.value})}
                     />
                   </div>
                   <div>
@@ -131,7 +173,7 @@ const HRServices = () => {
                       type="date"
                       required
                       className="mt-1"
-                      onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                      onChange={(e) => setFormData({...formData, end_date: e.target.value})}
                     />
                   </div>
                 </div>
@@ -148,7 +190,7 @@ const HRServices = () => {
             )}
 
             {/* Work from Home specific */}
-            {activeService === 'wfh' && (
+            {activeService === 'Work from Home' && (
               <>
                 <div>
                   <Label htmlFor="wfhDate">Work from Home Date</Label>
@@ -174,7 +216,7 @@ const HRServices = () => {
             )}
 
             {/* Salary Certificate */}
-            {activeService === 'certificate' && (
+            {activeService === 'Salary Certificate' && (
               <>
                 <div>
                   <Label htmlFor="purpose">Purpose</Label>
@@ -203,7 +245,7 @@ const HRServices = () => {
             )}
 
             {/* Expense Reimbursement */}
-            {activeService === 'expense' && (
+            {activeService === 'Expense Reimbursement' && (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -214,7 +256,7 @@ const HRServices = () => {
                       step="0.01"
                       required
                       className="mt-1"
-                      onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                      onChange={(e) => setFormData({...formData, amount: parseFloat(e.target.value)})}
                     />
                   </div>
                   <div>
@@ -224,7 +266,7 @@ const HRServices = () => {
                       type="date"
                       required
                       className="mt-1"
-                      onChange={(e) => setFormData({...formData, expenseDate: e.target.value})}
+                      onChange={(e) => setFormData({...formData, date: e.target.value})}
                     />
                   </div>
                 </div>
@@ -257,7 +299,7 @@ const HRServices = () => {
             )}
 
             {/* Business Trip */}
-            {activeService === 'travel' && (
+            {activeService === 'Business Trip' && (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -277,7 +319,7 @@ const HRServices = () => {
                       type="number"
                       required
                       className="mt-1"
-                      onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                      onChange={(e) => setFormData({...formData, duration: parseInt(e.target.value)})}
                     />
                   </div>
                 </div>
@@ -289,7 +331,7 @@ const HRServices = () => {
                       type="date"
                       required
                       className="mt-1"
-                      onChange={(e) => setFormData({...formData, departureDate: e.target.value})}
+                      onChange={(e) => setFormData({...formData, departure_date: e.target.value})}
                     />
                   </div>
                   <div>
@@ -299,7 +341,7 @@ const HRServices = () => {
                       type="date"
                       required
                       className="mt-1"
-                      onChange={(e) => setFormData({...formData, returnDate: e.target.value})}
+                      onChange={(e) => setFormData({...formData, return_date: e.target.value})}
                     />
                   </div>
                 </div>
@@ -310,22 +352,32 @@ const HRServices = () => {
                     placeholder="Describe the purpose of the trip..."
                     required
                     className="mt-1"
-                    onChange={(e) => setFormData({...formData, businessPurpose: e.target.value})}
+                    onChange={(e) => setFormData({...formData, business_purpose: e.target.value})}
                   />
                 </div>
               </>
             )}
 
             <div className="flex space-x-4 pt-4">
-              <Button type="submit" className="flex-1">
-                <Send className="h-4 w-4 mr-2" />
-                Submit Request
+              <Button type="submit" className="flex-1" disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Submit Request
+                  </>
+                )}
               </Button>
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => setActiveService(null)}
                 className="flex-1"
+                disabled={submitting}
               >
                 Cancel
               </Button>
@@ -387,29 +439,48 @@ const HRServices = () => {
             <CardTitle>Recent Requests</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {mockHRRequests.map((request) => (
-                <div key={request.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{request.type}</h4>
-                    <p className="text-sm text-gray-500">
-                      {request.startDate && request.endDate 
-                        ? `${new Date(request.startDate).toLocaleDateString()} - ${new Date(request.endDate).toLocaleDateString()}`
-                        : request.date 
-                        ? new Date(request.date).toLocaleDateString()
-                        : `Submitted on ${new Date(request.submittedDate).toLocaleDateString()}`
-                      }
-                    </p>
-                    {request.days && (
-                      <p className="text-sm text-blue-600">{request.days} days</p>
-                    )}
+            {loading ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-600 mx-auto mb-4" />
+                <p className="text-gray-600">Loading requests...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {requests.slice(0, 5).map((request) => (
+                  <div key={request.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">{request.type}</h4>
+                      <p className="text-sm text-gray-500">
+                        {request.start_date && request.end_date 
+                          ? `${formatDate(request.start_date)} - ${formatDate(request.end_date)}`
+                          : request.date 
+                          ? formatDate(request.date)
+                          : `Submitted on ${formatDate(request.submitted_date)}`
+                        }
+                      </p>
+                      {request.days && (
+                        <p className="text-sm text-blue-600">{request.days} days</p>
+                      )}
+                      {request.amount && (
+                        <p className="text-sm text-green-600">Amount: {request.amount} SAR</p>
+                      )}
+                      {request.destination && (
+                        <p className="text-sm text-purple-600">Destination: {request.destination}</p>
+                      )}
+                    </div>
+                    <Badge variant={request.status === 'Approved' ? 'default' : 'secondary'}>
+                      {request.status}
+                    </Badge>
                   </div>
-                  <Badge variant={request.status === 'Approved' ? 'default' : 'secondary'}>
-                    {request.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                ))}
+                {requests.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No requests submitted yet</p>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
