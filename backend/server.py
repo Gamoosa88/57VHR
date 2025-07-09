@@ -220,17 +220,17 @@ async def get_policies(category: Optional[str] = None, search: Optional[str] = N
     policies = await policies_collection.find(query).to_list(100)
     return [Policy(**policy) for policy in policies]
 
+@api_router.get("/policies/categories")
+async def get_policy_categories():
+    categories = await policies_collection.distinct("category")
+    return {"categories": categories}
+
 @api_router.get("/policies/{policy_id}", response_model=Policy)
 async def get_policy(policy_id: str):
     policy = await policies_collection.find_one({"id": policy_id})
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
     return Policy(**policy)
-
-@api_router.get("/policies/categories")
-async def get_policy_categories():
-    categories = await policies_collection.distinct("category")
-    return {"categories": categories}
 
 # Chat endpoints
 @api_router.post("/chat/message")
