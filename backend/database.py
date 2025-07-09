@@ -27,8 +27,8 @@ async def init_database():
     # Create sample employee
     sample_employee = {
         "id": "EMP001",
-        "name": "Ahmed Al-Rahman",
-        "email": "ahmed.alrahman@1957ventures.com",
+        "name": "Basel",
+        "email": "basel@1957ventures.com",
         "title": "Senior Software Engineer",
         "department": "Technology",
         "grade": "D",
