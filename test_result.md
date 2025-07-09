@@ -126,7 +126,7 @@ backend:
     file: "backend/database.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
@@ -134,6 +134,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Fixed by ensuring dotenv loads before database imports"
+      - working: true
+        agent: "testing"
+        comment: "Database connection working correctly. Sample data initialization successful with employee, vacation balance, salary payment, HR requests, and policies."
 
   - task: "HR API Endpoints"
     implemented: true
