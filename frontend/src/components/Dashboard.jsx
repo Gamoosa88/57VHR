@@ -282,16 +282,31 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+              <Button 
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                onClick={() => handleQuickAction('request-leave')}
+              >
                 Request Leave
               </Button>
-              <Button variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+              <Button 
+                variant="outline" 
+                className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                onClick={() => handleQuickAction('submit-expense')}
+              >
                 Submit Expense
               </Button>
-              <Button variant="outline" className="border-green-200 text-green-700 hover:bg-green-50">
+              <Button 
+                variant="outline" 
+                className="border-green-200 text-green-700 hover:bg-green-50"
+                onClick={() => handleQuickAction('view-policies')}
+              >
                 View Policies
               </Button>
-              <Button variant="outline" className="border-orange-200 text-orange-700 hover:bg-orange-50">
+              <Button 
+                variant="outline" 
+                className="border-orange-200 text-orange-700 hover:bg-orange-50"
+                onClick={() => handleQuickAction('ask-ai')}
+              >
                 Ask AI Assistant
               </Button>
             </div>
