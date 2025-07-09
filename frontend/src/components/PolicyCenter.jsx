@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Filter, 
@@ -9,48 +9,100 @@ import {
   Users,
   Briefcase,
   Heart,
-  Plane
+  Plane,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { mockPolicies } from '../data/mockData';
+import { policiesApi } from '../services/api';
 
 const PolicyCenter = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedPolicy, setSelectedPolicy] = useState(null);
+  const [policies, setPolicies] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const categories = [
-    { value: 'all', label: 'All Categories', icon: BookOpen },
-    { value: 'Leaves', label: 'Leave Policies', icon: Calendar },
-    { value: 'Compensation', label: 'Compensation', icon: Users },
-    { value: 'Travel', label: 'Travel & Business', icon: Plane },
-    { value: 'Conduct', label: 'Work Rules', icon: Briefcase }
-  ];
+  const categoryIcons = {
+    'all': BookOpen,
+    'Leaves': Calendar,
+    'Compensation': Users,
+    'Travel': Plane,
+    'Conduct': Briefcase
+  };
 
-  const filteredPolicies = useMemo(() => {
-    return mockPolicies.filter(policy => {
-      const matchesSearch = searchTerm === '' || 
-        policy.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        policy.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        policy.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+  const categoryLabels = {
+    'all': 'All Categories',
+    'Leaves': 'Leave Policies',
+    'Compensation': 'Compensation',
+    'Travel': 'Travel & Business',
+    'Conduct': 'Work Rules'
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  useEffect(() => {
+    fetchPolicies();
+  }, [selectedCategory, searchTerm]);
+
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      const [policiesData, categoriesData] = await Promise.all([
+        policiesApi.getPolicies(),
+        policiesApi.getCategories()
+      ]);
       
-      const matchesCategory = selectedCategory === 'all' || policy.category === selectedCategory;
+      setPolicies(policiesData);
+      setCategories(['all', ...categoriesData.categories]);
+    } catch (err) {
+      setError('Failed to load policies');
+      console.error('Policy center error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPolicies = async () => {
+    try {
+      const category = selectedCategory === 'all' ? null : selectedCategory;
+      const search = searchTerm.trim() || null;
       
-      return matchesSearch && matchesCategory;
-    });
-  }, [searchTerm, selectedCategory]);
+      const data = await policiesApi.getPolicies(category, search);
+      setPolicies(data);
+    } catch (err) {
+      console.error('Error fetching policies:', err);
+      setError('Failed to load policies');
+    }
+  };
+
+  const handlePolicySelect = async (policyId) => {
+    try {
+      const policy = await policiesApi.getPolicy(policyId);
+      setSelectedPolicy(policy);
+    } catch (err) {
+      console.error('Error fetching policy:', err);
+      setError('Failed to load policy details');
+    }
+  };
 
   const getCategoryIcon = (category) => {
-    const categoryData = categories.find(cat => cat.value === category);
-    return categoryData ? categoryData.icon : FileText;
+    return categoryIcons[category] || FileText;
+  };
+
+  const getCategoryLabel = (category) => {
+    return categoryLabels[category] || category;
   };
 
   const formatPolicyContent = (content) => {
-    // Simple markdown-like formatting
     return content
       .split('\n')
       .map((line, index) => {
@@ -67,9 +119,41 @@ const PolicyCenter = () => {
       });
   };
 
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading policies...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
+          <p className="text-red-600">{error}</p>
+          <Button onClick={fetchInitialData} className="mt-4">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (selectedPolicy) {
-    const policy = mockPolicies.find(p => p.id === selectedPolicy);
-    const CategoryIcon = getCategoryIcon(policy.category);
+    const CategoryIcon = getCategoryIcon(selectedPolicy.category);
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
@@ -89,13 +173,13 @@ const PolicyCenter = () => {
               <div className="flex items-center space-x-3">
                 <CategoryIcon className="h-6 w-6" />
                 <div className="flex-1">
-                  <CardTitle className="text-2xl">{policy.title}</CardTitle>
+                  <CardTitle className="text-2xl">{selectedPolicy.title}</CardTitle>
                   <div className="flex items-center space-x-4 mt-2">
                     <Badge variant="secondary" className="bg-white bg-opacity-20 text-white">
-                      {policy.category}
+                      {selectedPolicy.category}
                     </Badge>
                     <span className="text-blue-100 text-sm">
-                      Last updated: {new Date(policy.lastUpdated).toLocaleDateString()}
+                      Last updated: {formatDate(selectedPolicy.last_updated)}
                     </span>
                   </div>
                 </div>
@@ -103,13 +187,13 @@ const PolicyCenter = () => {
             </CardHeader>
             <CardContent className="p-8">
               <div className="prose max-w-none">
-                {formatPolicyContent(policy.content)}
+                {formatPolicyContent(selectedPolicy.content)}
               </div>
               
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <div className="flex flex-wrap gap-2">
                   <span className="text-sm font-medium text-gray-600 mr-2">Tags:</span>
-                  {policy.tags.map((tag) => (
+                  {selectedPolicy.tags.map((tag) => (
                     <Badge key={tag} variant="outline" className="text-blue-600 border-blue-200">
                       <Tag className="h-3 w-3 mr-1" />
                       {tag}
@@ -156,12 +240,12 @@ const PolicyCenter = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => {
-                    const Icon = category.icon;
+                    const Icon = getCategoryIcon(category);
                     return (
-                      <SelectItem key={category.value} value={category.value}>
+                      <SelectItem key={category} value={category}>
                         <div className="flex items-center space-x-2">
                           <Icon className="h-4 w-4" />
-                          <span>{category.label}</span>
+                          <span>{getCategoryLabel(category)}</span>
                         </div>
                       </SelectItem>
                     );
@@ -175,17 +259,17 @@ const PolicyCenter = () => {
         {/* Category Quick Access */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {categories.slice(1).map((category) => {
-            const Icon = category.icon;
-            const count = mockPolicies.filter(p => p.category === category.value).length;
+            const Icon = getCategoryIcon(category);
+            const count = policies.filter(p => p.category === category).length;
             return (
               <Card 
-                key={category.value}
+                key={category}
                 className="cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group"
-                onClick={() => setSelectedCategory(category.value)}
+                onClick={() => setSelectedCategory(category)}
               >
                 <CardContent className="p-4 text-center">
                   <Icon className="h-8 w-8 mx-auto mb-2 text-blue-600 group-hover:text-purple-600 transition-colors" />
-                  <h3 className="font-medium text-sm text-gray-900">{category.label}</h3>
+                  <h3 className="font-medium text-sm text-gray-900">{getCategoryLabel(category)}</h3>
                   <p className="text-xs text-gray-500 mt-1">{count} policies</p>
                 </CardContent>
               </Card>
@@ -197,7 +281,7 @@ const PolicyCenter = () => {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-gray-900">
-              {searchTerm ? `Search Results (${filteredPolicies.length})` : 'All Policies'}
+              {searchTerm ? `Search Results (${policies.length})` : 'All Policies'}
             </h2>
             {selectedCategory !== 'all' && (
               <Button 
@@ -210,7 +294,7 @@ const PolicyCenter = () => {
             )}
           </div>
 
-          {filteredPolicies.length === 0 ? (
+          {policies.length === 0 ? (
             <Card className="shadow-lg">
               <CardContent className="p-12 text-center">
                 <BookOpen className="h-16 w-16 mx-auto mb-4 text-gray-300" />
@@ -220,13 +304,13 @@ const PolicyCenter = () => {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredPolicies.map((policy) => {
+              {policies.map((policy) => {
                 const CategoryIcon = getCategoryIcon(policy.category);
                 return (
                   <Card 
                     key={policy.id}
                     className="cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group"
-                    onClick={() => setSelectedPolicy(policy.id)}
+                    onClick={() => handlePolicySelect(policy.id)}
                   >
                     <CardHeader>
                       <div className="flex items-start space-x-3">
@@ -242,7 +326,7 @@ const PolicyCenter = () => {
                               {policy.category}
                             </Badge>
                             <span className="text-xs text-gray-500">
-                              Updated {new Date(policy.lastUpdated).toLocaleDateString()}
+                              Updated {formatDate(policy.last_updated)}
                             </span>
                           </div>
                         </div>

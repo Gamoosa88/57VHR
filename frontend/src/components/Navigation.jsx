@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
@@ -7,14 +7,17 @@ import {
   MessageCircle, 
   User,
   LogOut,
-  Building2
+  Building2,
+  Loader2
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { mockEmployee } from '../data/mockData';
+import { employeeApi } from '../services/api';
 
 const Navigation = () => {
   const location = useLocation();
+  const [employee, setEmployee] = useState(null);
+  const [loading, setLoading] = useState(true);
   
   const navigationItems = [
     { path: '/', icon: Home, label: 'Dashboard' },
@@ -23,11 +26,30 @@ const Navigation = () => {
     { path: '/chat', icon: MessageCircle, label: 'AI Assistant' }
   ];
 
+  useEffect(() => {
+    fetchEmployee();
+  }, []);
+
+  const fetchEmployee = async () => {
+    try {
+      const data = await employeeApi.getCurrentEmployee();
+      setEmployee(data);
+    } catch (error) {
+      console.error('Error fetching employee:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isActive = (path) => {
     if (path === '/') {
       return location.pathname === '/';
     }
     return location.pathname.startsWith(path);
+  };
+
+  const getInitials = (name) => {
+    return name ? name.split(' ').map(n => n[0]).join('') : 'AA';
   };
 
   return (
@@ -68,22 +90,47 @@ const Navigation = () => {
 
       {/* User Profile Section */}
       <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center space-x-3 mb-4">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src="/api/placeholder/40/40" />
-            <AvatarFallback className="bg-blue-100 text-blue-700">
-              {mockEmployee.name.split(' ').map(n => n[0]).join('')}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {mockEmployee.name}
-            </p>
-            <p className="text-xs text-gray-500 truncate">
-              {mockEmployee.title}
-            </p>
+        {loading ? (
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            </div>
+            <div className="flex-1">
+              <div className="h-4 bg-gray-200 rounded mb-1"></div>
+              <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+            </div>
           </div>
-        </div>
+        ) : employee ? (
+          <div className="flex items-center space-x-3 mb-4">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src="/api/placeholder/40/40" />
+              <AvatarFallback className="bg-blue-100 text-blue-700">
+                {getInitials(employee.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {employee.name}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {employee.title}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center space-x-3 mb-4">
+            <Avatar className="h-10 w-10">
+              <AvatarFallback className="bg-red-100 text-red-700">
+                !
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-red-600">
+                Error loading profile
+              </p>
+            </div>
+          </div>
+        )}
         
         <div className="space-y-2">
           <Button variant="ghost" size="sm" className="w-full justify-start">

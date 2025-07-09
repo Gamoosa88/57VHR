@@ -8,19 +8,24 @@ import {
   Calendar,
   FileText,
   Clock,
-  BookOpen
+  BookOpen,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
-import { mockChatHistory, mockEmployee, mockDashboardData } from '../data/mockData';
+import { chatApi, employeeApi } from '../services/api';
 
 const ChatAssistant = () => {
-  const [messages, setMessages] = useState(mockChatHistory);
+  const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [employee, setEmployee] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -30,6 +35,28 @@ const ChatAssistant = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      const [chatHistory, empData] = await Promise.all([
+        chatApi.getChatHistory(),
+        employeeApi.getCurrentEmployee()
+      ]);
+      
+      setMessages(chatHistory.messages || []);
+      setEmployee(empData);
+    } catch (err) {
+      setError('Failed to load chat history');
+      console.error('Chat assistant error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const quickActions = [
     {
@@ -54,64 +81,11 @@ const ChatAssistant = () => {
     }
   ];
 
-  // Mock AI responses based on common HR queries
-  const generateResponse = (message) => {
-    const lowerMessage = message.toLowerCase();
-    
-    if (lowerMessage.includes('vacation') && lowerMessage.includes('days')) {
-      return {
-        response: `You currently have ${mockDashboardData.vacationDaysLeft} vacation days remaining out of your annual 30-day entitlement (Grade ${mockEmployee.grade}). You've used 2 days so far this year. Remember, you need to take at least 10 consecutive days once per year according to company policy.`,
-        type: 'query'
-      };
-    }
-    
-    if (lowerMessage.includes('sick leave') && lowerMessage.includes('request')) {
-      return {
-        response: `I can help you request sick leave. According to our policy, you'll need to provide a medical certificate from an approved medical body. For the first 30 days, you'll receive full salary. Would you like me to guide you through the sick leave request form?`,
-        type: 'action'
-      };
-    }
-    
-    if (lowerMessage.includes('salary') && (lowerMessage.includes('last') || lowerMessage.includes('payment'))) {
-      return {
-        response: `Your last salary payment was ${new Intl.NumberFormat('en-SA', { style: 'currency', currency: 'SAR' }).format(mockDashboardData.lastSalaryPayment.amount)} on ${new Date(mockDashboardData.lastSalaryPayment.date).toLocaleDateString()}. The payment status is "${mockDashboardData.lastSalaryPayment.status}". Salaries are paid monthly on the 15th of each month.`,
-        type: 'query'
-      };
-    }
-    
-    if (lowerMessage.includes('business travel') || lowerMessage.includes('travel policy')) {
-      return {
-        response: `Based on your Grade ${mockEmployee.grade}, for business travel you're entitled to: Economy class tickets, 4-star hotel accommodation, and 200-400 SAR daily allowance inside the Kingdom (300-600 SAR outside). The company provides up to 14 days hotel stay and airport transfers. Would you like to see the full travel policy or request a business trip?`,
-        type: 'policy'
-      };
-    }
-    
-    if (lowerMessage.includes('work from home') || lowerMessage.includes('wfh') || lowerMessage.includes('remote')) {
-      return {
-        response: `You can request work from home for a maximum of 2 days per month. The request cannot be at the beginning or end of the week and requires manager approval. Would you like me to help you submit a WFH request?`,
-        type: 'policy'
-      };
-    }
-    
-    if (lowerMessage.includes('expense') && lowerMessage.includes('policy')) {
-      return {
-        response: `For expense reimbursement, you can claim business-related expenses with proper receipts. Categories include travel, meals, accommodation, office supplies, and other work-related expenses. All expenses must be approved by your manager and supported by original invoices. Would you like to submit an expense claim?`,
-        type: 'policy'
-      };
-    }
-    
-    // Default response
-    return {
-      response: `I understand you're asking about "${message}". I'm here to help with HR-related questions about policies, leave requests, salary information, and more. Could you please be more specific about what you'd like to know? I can help with vacation days, sick leave requests, expense claims, business travel, work from home policies, and general HR inquiries.`,
-      type: 'query'
-    };
-  };
-
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || isTyping) return;
 
     const userMessage = {
-      id: `chat${Date.now()}`,
+      id: `msg_${Date.now()}`,
       message: inputMessage,
       timestamp: new Date().toISOString(),
       type: 'user'
@@ -121,20 +95,31 @@ const ChatAssistant = () => {
     setInputMessage('');
     setIsTyping(true);
 
-    // Simulate AI processing delay
-    setTimeout(() => {
-      const aiResponse = generateResponse(inputMessage);
+    try {
+      const response = await chatApi.sendMessage(inputMessage);
+      
       const assistantMessage = {
-        id: `chat${Date.now() + 1}`,
+        id: response.id,
         message: inputMessage,
-        response: aiResponse.response,
-        timestamp: new Date().toISOString(),
-        type: aiResponse.type
+        response: response.response,
+        timestamp: response.timestamp,
+        type: response.type
       };
       
       setMessages(prev => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error('Chat error:', err);
+      const errorMessage = {
+        id: `error_${Date.now()}`,
+        message: inputMessage,
+        response: "I'm sorry, I encountered an error processing your request. Please try again.",
+        timestamp: new Date().toISOString(),
+        type: 'error'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleQuickAction = (actionText) => {
@@ -148,6 +133,31 @@ const ChatAssistant = () => {
     });
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading chat assistant...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
+          <p className="text-red-600">{error}</p>
+          <Button onClick={fetchInitialData} className="mt-4">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -158,6 +168,11 @@ const ChatAssistant = () => {
           <p className="text-lg text-gray-600">
             Get instant answers to your HR questions and submit requests
           </p>
+          {employee && (
+            <p className="text-sm text-gray-500">
+              Hi {employee.name}, I'm here to help with all your HR needs!
+            </p>
+          )}
         </div>
 
         {/* Quick Actions */}
@@ -206,6 +221,13 @@ const ChatAssistant = () => {
           <div className="flex-1 overflow-hidden">
             <ScrollArea className="h-full p-4">
               <div className="space-y-4">
+                {messages.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Bot className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Start a conversation! Ask me anything about HR policies, requests, or your current status.</p>
+                  </div>
+                )}
+                
                 {messages.map((msg) => (
                   <div key={msg.id} className="space-y-3">
                     {/* User Message */}
@@ -228,8 +250,14 @@ const ChatAssistant = () => {
                             <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-2 rounded-full">
                               <Bot className="h-4 w-4 text-white" />
                             </div>
-                            <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-2">
-                              <p className="text-sm text-gray-800">{msg.response}</p>
+                            <div className={`rounded-2xl rounded-bl-md px-4 py-2 ${
+                              msg.type === 'error' ? 'bg-red-100' : 'bg-gray-100'
+                            }`}>
+                              <p className={`text-sm ${
+                                msg.type === 'error' ? 'text-red-800' : 'text-gray-800'
+                              }`}>
+                                {msg.response}
+                              </p>
                               <span className="text-xs text-gray-500 mt-1 block">
                                 {formatTimestamp(msg.timestamp)}
                               </span>
@@ -273,13 +301,18 @@ const ChatAssistant = () => {
                 placeholder="Ask me anything about HR policies, leave requests, or submit a request..."
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                 className="flex-1"
+                disabled={isTyping}
               />
               <Button 
                 onClick={handleSendMessage}
                 disabled={!inputMessage.trim() || isTyping}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
               >
-                <Send className="h-4 w-4" />
+                {isTyping ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </div>
             <p className="text-xs text-gray-500 mt-2">
