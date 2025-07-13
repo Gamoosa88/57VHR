@@ -170,6 +170,9 @@ backend:
       - working: "NA"
         agent: "main"
         comment: "Enhanced AI service to use comprehensive HR policy database with bilingual support (English/Arabic). Improved policy question detection and response generation to utilize the complete 1957 Ventures HR policy document."
+      - working: "NA"
+        agent: "main"
+        comment: "Updated to use OpenAI Assistant API with custom trained HR assistant (asst_Dwo2hqfJhI6GfD31YGt6bcrJ). Policy questions now trigger the specialized assistant for accurate HR policy responses."
 
   - task: "Policy Management System"
     implemented: true
