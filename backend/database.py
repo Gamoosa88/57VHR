@@ -29,83 +29,86 @@ async def init_database():
     if employee_count > 0 and policy_count > 0:
         return  # Database already fully initialized
     
-    # Create sample employee
-    sample_employee = {
-        "id": "EMP001",
-        "name": "Meshal Al Shammari",
-        "email": "meshal.alshammari@1957ventures.com",
-        "title": "Senior Software Engineer",
-        "department": "Technology",
-        "grade": "D",
-        "basic_salary": 15000.0,
-        "total_salary": 19500.0,
-        "bank_account": "SA12 3456 7890 1234 5678",
-        "start_date": "2022-03-15",
-        "manager": "Sarah Johnson",
-        "created_at": datetime.utcnow()
-    }
-    await employees_collection.insert_one(sample_employee)
-    
-    # Create vacation balance
-    vacation_balance = {
-        "employee_id": "EMP001",
-        "total_days": 30,  # Grade D gets 30 days
-        "used_days": 2,
-        "remaining_days": 28,
-        "year": 2025
-    }
-    await vacation_balances_collection.insert_one(vacation_balance)
-    
-    # Create sample salary payment
-    salary_payment = {
-        "id": "PAY001",
-        "employee_id": "EMP001",
-        "amount": 19500.0,
-        "date": datetime(2025, 1, 1),
-        "status": "Paid",
-        "description": "Monthly Salary"
-    }
-    await salary_payments_collection.insert_one(salary_payment)
-    
-    # Create sample HR requests
-    sample_requests = [
-        {
-            "id": "REQ001",
-            "employee_id": "EMP001",
-            "type": "Business Trip",
-            "destination": "Dubai",
-            "status": "Pending Approval",
-            "submitted_date": datetime(2025, 1, 10),
-            "departure_date": "2025-01-20",
-            "return_date": "2025-01-25",
-            "business_purpose": "Client meeting and project review",
-            "duration": 5
-        },
-        {
-            "id": "REQ002",
-            "employee_id": "EMP001",
-            "type": "Expense Reimbursement",
-            "amount": 450.0,
-            "category": "meals",
-            "description": "Client dinner during business trip",
-            "status": "Under Review",
-            "submitted_date": datetime(2025, 1, 8)
-        },
-        {
-            "id": "REQ003",
-            "employee_id": "EMP001",
-            "type": "Vacation Leave",
-            "start_date": "2024-12-20",
-            "end_date": "2024-12-30",
-            "days": 8,
-            "reason": "Family vacation",
-            "status": "Approved",
-            "submitted_date": datetime(2024, 12, 1),
-            "approved_date": datetime(2024, 12, 2),
-            "approved_by": "Sarah Johnson"
+    # Initialize employee data if missing
+    if employee_count == 0:
+        # Create sample employee
+        sample_employee = {
+            "id": "EMP001",
+            "name": "Meshal Al Shammari",
+            "email": "meshal.alshammari@1957ventures.com",
+            "title": "Senior Software Engineer",
+            "department": "Technology",
+            "grade": "D",
+            "basic_salary": 15000.0,
+            "total_salary": 19500.0,
+            "bank_account": "SA12 3456 7890 1234 5678",
+            "start_date": "2022-03-15",
+            "manager": "Sarah Johnson",
+            "created_at": datetime.utcnow()
         }
-    ]
-    await hr_requests_collection.insert_many(sample_requests)
+        await employees_collection.insert_one(sample_employee)
+        
+        # Create vacation balance
+        vacation_balance = {
+            "employee_id": "EMP001",
+            "total_days": 30,  # Grade D gets 30 days
+            "used_days": 2,
+            "remaining_days": 28,
+            "year": 2025
+        }
+        await vacation_balances_collection.insert_one(vacation_balance)
+        
+        # Create sample salary payment
+        salary_payment = {
+            "id": "PAY001",
+            "employee_id": "EMP001",
+            "amount": 19500.0,
+            "date": datetime(2025, 1, 1),
+            "status": "Paid",
+            "description": "Monthly Salary"
+        }
+        await salary_payments_collection.insert_one(salary_payment)
+        
+        # Create sample HR requests
+        sample_requests = [
+            {
+                "id": "REQ001",
+                "employee_id": "EMP001",
+                "type": "Business Trip",
+                "destination": "Dubai",
+                "status": "Pending Approval",
+                "submitted_date": datetime(2025, 1, 10),
+                "departure_date": "2025-01-20",
+                "return_date": "2025-01-25",
+                "business_purpose": "Client meeting and project review",
+                "duration": 5
+            },
+            {
+                "id": "REQ002",
+                "employee_id": "EMP001",
+                "type": "Expense Reimbursement",
+                "amount": 450.0,
+                "category": "meals",
+                "description": "Client dinner during business trip",
+                "status": "Under Review",
+                "submitted_date": datetime(2025, 1, 8)
+            },
+            {
+                "id": "REQ003",
+                "employee_id": "EMP001",
+                "type": "Vacation Leave",
+                "start_date": "2024-12-20",
+                "end_date": "2024-12-30",
+                "days": 8,
+                "reason": "Family vacation",
+                "status": "Approved",
+                "submitted_date": datetime(2024, 12, 1),
+                "approved_date": datetime(2024, 12, 2),
+                "approved_by": "Sarah Johnson"
+            }
+        ]
+        await hr_requests_collection.insert_many(sample_requests)
+        print("✅ Employee data initialized")
     
     # Create comprehensive policies from 1957 Ventures HR Policy Document
     comprehensive_policies = [
