@@ -153,17 +153,23 @@ backend:
         agent: "testing"
         comment: "All HR API endpoints tested and working correctly. Successfully tested employee endpoints, dashboard data retrieval, HR request creation and status updates."
 
-  - task: "Comprehensive HR Policy Integration"
+  - task: "AI Chat Assistant Integration"
     implemented: true
-    working: "NA"
-    file: "backend/database.py, backend/ai_service.py"
+    working: true
+    file: "backend/ai_service.py"
     stuck_count: 0
     priority: "high"
     needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Integrated comprehensive 1957 Ventures HR policy document with 13 detailed policy sections covering all aspects: Introduction, Recruitment, Leaves (annual, sick, maternity, etc.), Compensation, Business Travel, Work Rules, End of Service, Performance Management, and Administrative Services. Added bilingual support (English/Arabic) to AI service for policy queries. Enhanced policy detection for both languages."
+        comment: "OpenAI integration implemented using emergentintegrations - need testing"
+      - working: true
+        agent: "testing"
+        comment: "AI Chat Assistant integration tested and working correctly. Successfully sent a test message and received a coherent response from the OpenAI integration. Chat history retrieval also working."
+      - working: "NA"
+        agent: "main"
+        comment: "Enhanced AI service to use comprehensive HR policy database with bilingual support (English/Arabic). Improved policy question detection and response generation to utilize the complete 1957 Ventures HR policy document."
 
   - task: "Policy Management System"
     implemented: true
