@@ -666,6 +666,11 @@ if __name__ == "__main__":
     test_suite.addTest(HRHubBackendTests('test_get_policy_by_id'))
     test_suite.addTest(HRHubBackendTests('test_get_policies_with_filters'))
     
+    # AI Chat Assistant - OpenAI Assistant API Testing
+    test_suite.addTest(HRHubBackendTests('test_openai_assistant_api_integration'))
+    test_suite.addTest(HRHubBackendTests('test_assistant_api_employee_context'))
+    test_suite.addTest(HRHubBackendTests('test_assistant_api_fallback_behavior'))
+    
     # AI Chat Assistant - Comprehensive Testing
     test_suite.addTest(HRHubBackendTests('test_comprehensive_policy_database'))
     test_suite.addTest(HRHubBackendTests('test_policy_search_bilingual'))
