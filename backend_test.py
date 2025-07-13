@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta
 
 # Get the backend URL from the frontend .env file
-BACKEND_URL = "https://5c344aa8-19cc-4dde-951c-82adfc5f5b58.preview.emergentagent.com/api"
+BACKEND_URL = "https://da52e590-2fb6-40b6-b6cc-a710cc1dee1b.preview.emergentagent.com/api"
 EMPLOYEE_ID = "EMP001"
 
 class HRHubBackendTests(unittest.TestCase):
