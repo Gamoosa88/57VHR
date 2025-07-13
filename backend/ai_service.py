@@ -13,9 +13,8 @@ class AIHRAssistant:
         # Initialize OpenAI client
         openai.api_key = self.api_key
         
-        # Note: Custom ChatGPT IDs (starting with 'g-') cannot be accessed via API
-        # This service simulates custom GPT behavior using comprehensive policy context
-        self.custom_gpt_id = "g-685d53e450208191992ef69c0eb2d63c-1957v-hr-assistant"  # Reference only
+        # Using OpenAI Assistant API with custom trained HR assistant
+        self.assistant_id = "asst_Dwo2hqfJhI6GfD31YGt6bcrJ"  # Your HR Assistant ID
     
     async def generate_response(self, message: str, employee_id: str, session_id: str) -> Dict[str, Any]:
         """Generate AI response using custom GPT and context from database"""
