@@ -70,105 +70,87 @@ class AIHRAssistant:
         return any(keyword in message_lower for keyword in policy_keywords)
     
     async def _query_custom_gpt(self, message: str, employee: Dict, context: str) -> str:
-        """Query a custom GPT-like system for policy-related questions with bilingual support"""
+        """Query OpenAI Assistant API for policy-related questions"""
         
-        # Get all policies from database to provide comprehensive context
-        policies = await policies_collection.find().to_list(100)
-        
-        # Detect if query is in Arabic
-        arabic_chars = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي']
-        is_arabic_query = any(char in message for char in arabic_chars)
-        
-        # Create comprehensive policy knowledge base
-        policy_knowledge = ""
-        for policy in policies:
-            policy_knowledge += f"\n=== {policy['title']} ({policy['category']}) ===\n"
+        try:
+            # Create a thread for this conversation
+            thread = openai.beta.threads.create()
             
-            # Include both English and Arabic content if available
-            policy_knowledge += f"ENGLISH CONTENT:\n{policy['content']}\n"
-            if 'content_ar' in policy and policy['content_ar']:
-                policy_knowledge += f"\nARABIC CONTENT:\n{policy['content_ar']}\n"
-            
-            policy_knowledge += f"Tags: {', '.join(policy['tags'])}\n"
-            policy_knowledge += f"Last Updated: {policy['last_updated']}\n\n"
-        
-        # Enhanced message with employee context
-        enhanced_message = f"""
-EMPLOYEE PROFILE:
+            # Enhanced message with employee context
+            enhanced_message = f"""
+Employee Profile:
 - Name: {employee['name']}
 - Employee ID: {employee.get('id', 'N/A')}
 - Grade: {employee['grade']}
 - Department: {employee['department']}
 - Title: {employee['title']}
-- Email: {employee.get('email', 'N/A')}
-- Manager: {employee.get('manager', 'N/A')}
 
-CURRENT HR STATUS:
+Current HR Status:
 {context}
 
-EMPLOYEE QUESTION: {message}
+Question: {message}
 """
-        
-        try:
-            # Determine response language based on query
-            language_instruction = "Respond primarily in Arabic" if is_arabic_query else "Respond primarily in English"
             
-            # Use OpenAI with comprehensive system prompt to simulate custom GPT behavior
-            response = openai.chat.completions.create(
-                model="gpt-4o",  # Using the latest model
-                messages=[
-                    {
-                        "role": "system",
-                        "content": f"""You are the 1957 Ventures HR Assistant (مساعد الموارد البشرية لشركة الابتكار الجريء), a specialized bilingual AI assistant trained specifically on 1957 Ventures' HR policies and procedures. You have comprehensive knowledge of the company's HR policies in both English and Arabic.
-
-COMPANY: 1957 Ventures Company (شركة الابتكار الجريء لحاضنات ومسرعات الأعمال)
-ROLE: Official HR Assistant AI (مساعد الموارد البشرية الرسمي)
-
-=== COMPLETE HR POLICY KNOWLEDGE BASE ===
-{policy_knowledge}
-
-=== YOUR EXPERTISE AREAS / مجالات خبرتك ===
-- Leave policies (vacation, sick leave, emergency leave) / سياسات الإجازات
-- Compensation and benefits / التعويضات والمزايا  
-- Business travel policies and procedures / سياسات السفر والانتداب
-- Work rules and conduct guidelines / قواعد العمل والسلوك
-- Employee entitlements based on grade levels / استحقاقات الموظفين حسب الدرجات
-- HR process guidance and form assistance / إرشادات العمليات والنماذج
-
-=== RESPONSE GUIDELINES / إرشادات الإجابة ===
-1. Always provide accurate, policy-based answers using the knowledge base above
-2. Reference specific policy sections when applicable
-3. Consider the employee's grade level for entitlements:
-   - Grade D and above: 30 vacation days per year / الدرجة D فأعلى: 30 يوم إجازة سنوياً
-   - Grade C and below: 25 vacation days per year / الدرجة C فأقل: 25 يوم إجازة سنوياً
-4. Be professional, helpful, and comprehensive
-5. {language_instruction} but include key terms in both languages when helpful
-6. For policy clarifications, quote relevant sections
-7. Always suggest checking the Policy Center for complete details
-8. If information is not in the policies, clearly state so and suggest contacting HR directly
-
-=== IMPORTANT NOTES / ملاحظات مهمة ===
-- All policy information above is the complete and authoritative source
-- Always maintain professional HR assistant tone
-- Provide specific, actionable guidance when possible
-- Include Arabic translation for key terms when responding in English
-- Include English translation for key terms when responding in Arabic"""
-                    },
-                    {
-                        "role": "user",
-                        "content": enhanced_message
-                    }
-                ],
-                max_tokens=1200,
-                temperature=0.2,  # Lower temperature for more consistent, policy-focused responses
-                top_p=0.9
+            # Add message to thread
+            message_obj = openai.beta.threads.messages.create(
+                thread_id=thread.id,
+                role="user",
+                content=enhanced_message
             )
             
-            return response.choices[0].message.content
+            # Run the assistant
+            run = openai.beta.threads.runs.create(
+                thread_id=thread.id,
+                assistant_id="asst_Dwo2hqfJhI6GfD31YGt6bcrJ"  # Your HR Assistant ID
+            )
             
+            # Wait for completion
+            import time
+            max_wait = 30  # 30 seconds timeout
+            wait_time = 0
+            
+            while run.status in ['queued', 'in_progress'] and wait_time < max_wait:
+                time.sleep(1)
+                wait_time += 1
+                run = openai.beta.threads.runs.retrieve(
+                    thread_id=thread.id,
+                    run_id=run.id
+                )
+            
+            if run.status == 'completed':
+                # Get the messages
+                messages = openai.beta.threads.messages.list(
+                    thread_id=thread.id
+                )
+                
+                # Get the assistant's response (first message in the list)
+                if messages.data:
+                    assistant_message = messages.data[0]
+                    if assistant_message.role == 'assistant':
+                        # Extract text content
+                        response_text = ""
+                        for content in assistant_message.content:
+                            if content.type == 'text':
+                                response_text += content.text.value
+                        
+                        return response_text
+                    
+            elif run.status == 'failed':
+                print(f"Assistant run failed: {run.last_error}")
+                return "I apologize, but I'm having trouble accessing the HR policy information right now. Please contact HR directly for assistance."
+            
+            elif wait_time >= max_wait:
+                print("Assistant response timeout")
+                return "I'm taking longer than usual to process your request. Please try again or contact HR directly."
+            
+            else:
+                print(f"Unexpected run status: {run.status}")
+                return "I encountered an issue processing your request. Please contact HR for assistance."
+                
         except Exception as e:
-            print(f"Custom GPT simulation error: {str(e)}")
-            raise e
+            print(f"OpenAI Assistant API Error: {str(e)}")
+            # Fallback to policy database search
+            return await self._basic_policy_search(message)
     
     async def _enhanced_policy_response(self, message: str, employee: Dict, context: str) -> str:
         """Enhanced policy response using database policies with AI formatting"""
