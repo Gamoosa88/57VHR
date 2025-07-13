@@ -75,15 +75,15 @@ class AIHRAssistant:
         return any(keyword in message_lower for keyword in policy_keywords)
     
     async def _query_custom_gpt(self, message: str, employee: Dict, context: str) -> str:
-        """Query OpenAI Assistant API for policy-related questions"""
+        """Query OpenAI Assistant API following the exact integration steps"""
         
         try:
-            # Create a thread for this conversation
+            # Step 1: Create a new thread (required for each chat session)
             thread = openai.beta.threads.create()
+            print(f"Created thread: {thread.id}")
             
             # Enhanced message with employee context
-            enhanced_message = f"""
-Employee Profile:
+            enhanced_message = f"""Employee Profile:
 - Name: {employee['name']}
 - Employee ID: {employee.get('id', 'N/A')}
 - Grade: {employee['grade']}
@@ -96,65 +96,80 @@ Current HR Status:
 Question: {message}
 """
             
-            # Add message to thread
-            message_obj = openai.beta.threads.messages.create(
-                thread_id=thread.id,
+            # Step 2: Send a user message
+            await asyncio.to_thread(
+                openai.beta.threads.messages.create,
+                thread.id,
                 role="user",
                 content=enhanced_message
             )
+            print("Message sent to thread")
             
-            # Run the assistant
-            run = openai.beta.threads.runs.create(
-                thread_id=thread.id,
-                assistant_id="asst_Dwo2hqfJhI6GfD31YGt6bcrJ"  # Your HR Assistant ID
+            # Step 3: Run the assistant
+            run = await asyncio.to_thread(
+                openai.beta.threads.runs.create,
+                thread.id,
+                assistant_id="asst_Dwo2hqfJhI6GfD31YGt6bcrJ"
             )
+            print(f"Assistant run started: {run.id}")
             
-            # Wait for completion
-            import time
-            max_wait = 30  # 30 seconds timeout
-            wait_time = 0
+            # Step 4: Poll until run is completed
+            max_attempts = 30  # 30 seconds timeout
+            attempt = 0
             
-            while run.status in ['queued', 'in_progress'] and wait_time < max_wait:
-                time.sleep(1)
-                wait_time += 1
-                run = openai.beta.threads.runs.retrieve(
-                    thread_id=thread.id,
-                    run_id=run.id
-                )
-            
-            if run.status == 'completed':
-                # Get the messages
-                messages = openai.beta.threads.messages.list(
-                    thread_id=thread.id
+            while attempt < max_attempts:
+                run_status = await asyncio.to_thread(
+                    openai.beta.threads.runs.retrieve,
+                    thread.id,
+                    run.id
                 )
                 
-                # Get the assistant's response (first message in the list)
-                if messages.data:
-                    assistant_message = messages.data[0]
-                    if assistant_message.role == 'assistant':
-                        # Extract text content
-                        response_text = ""
-                        for content in assistant_message.content:
-                            if content.type == 'text':
-                                response_text += content.text.value
-                        
-                        return response_text
-                    
-            elif run.status == 'failed':
-                print(f"Assistant run failed: {run.last_error}")
-                return "I apologize, but I'm having trouble accessing the HR policy information right now. Please contact HR directly for assistance."
+                print(f"Run status: {run_status.status} (attempt {attempt + 1})")
+                
+                if run_status.status == "completed":
+                    break
+                elif run_status.status == "failed":
+                    error_msg = getattr(run_status, 'last_error', 'Unknown error')
+                    print(f"Assistant run failed: {error_msg}")
+                    return "I apologize, but I'm having trouble accessing the HR policy information right now. Please contact HR directly for assistance."
+                elif run_status.status in ["cancelled", "expired"]:
+                    print(f"Assistant run {run_status.status}")
+                    return "The request was interrupted. Please try again or contact HR for assistance."
+                
+                # Wait 1 second before next poll
+                await asyncio.sleep(1)
+                attempt += 1
             
-            elif wait_time >= max_wait:
+            if attempt >= max_attempts:
                 print("Assistant response timeout")
                 return "I'm taking longer than usual to process your request. Please try again or contact HR directly."
             
-            else:
-                print(f"Unexpected run status: {run.status}")
-                return "I encountered an issue processing your request. Please contact HR for assistance."
+            # Step 5: Get the assistant's reply
+            messages = await asyncio.to_thread(
+                openai.beta.threads.messages.list,
+                thread.id
+            )
+            
+            # Find the last assistant message
+            for msg in messages.data:
+                if msg.role == "assistant":
+                    # Extract text content
+                    response_text = ""
+                    for content in msg.content:
+                        if content.type == 'text':
+                            response_text += content.text.value
+                    
+                    if response_text:
+                        print("Assistant response received successfully")
+                        return response_text
+            
+            # If no assistant response found
+            print("No assistant response found in messages")
+            return "I couldn't retrieve a response. Please try again or contact HR for assistance."
                 
         except Exception as e:
             print(f"OpenAI Assistant API Error: {str(e)}")
-            # Fallback to policy database search
+            # Fallback to basic policy search
             return await self._basic_policy_search(message)
     
     async def _enhanced_policy_response(self, message: str, employee: Dict, context: str) -> str:
