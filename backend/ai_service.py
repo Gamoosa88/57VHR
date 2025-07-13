@@ -57,13 +57,19 @@ class AIHRAssistant:
             'what is the policy', 'policy on', 'company policy', 'hr policy',
             'annual leave', 'sick leave', 'maternity leave', 'business travel',
             'end of service', 'performance management', 'recruitment',
+            'vacation days', 'vacation entitlement', 'how many vacation',
+            'travel allowance', 'travel allowances', 'business trip allowance',
+            'dress code', 'working hours', 'work hours', 'overtime',
+            'probation period', 'end of service benefit', 'service benefit',
+            'maternity policy', 'paternity leave', 'bereavement leave',
             
             # Arabic keywords
             'سياسة', 'سياسات', 'قواعد', 'قانون', 'إجراءات', 'لوائح',
             'إجازة', 'إجازات', 'إجازة سنوية', 'إجازة مرضية', 'إجازة أمومة',
             'انتداب', 'سفر', 'راتب', 'رواتب', 'مزايا', 'تعويضات',
             'نهاية الخدمة', 'مكافأة', 'توظيف', 'تطوير', 'أداء',
-            'ما هي السياسة', 'سياسة الشركة', 'قواعد العمل'
+            'ما هي السياسة', 'سياسة الشركة', 'قواعد العمل',
+            'كم يوم إجازة', 'أيام الإجازة', 'بدل سفر', 'ساعات العمل'
         ]
         message_lower = message.lower()
         return any(keyword in message_lower for keyword in policy_keywords)
