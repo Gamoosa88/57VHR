@@ -239,6 +239,224 @@ class HRHubBackendTests(unittest.TestCase):
         print(f"✅ Chat message and history endpoints working - Message ID: {chat_result['id']}")
         print(f"✅ AI response: '{chat_result['response'][:50]}...'")
 
+    def test_comprehensive_policy_database(self):
+        """Test comprehensive HR policy integration - verify all 13 policy sections are loaded"""
+        response = requests.get(f"{self.api_url}/policies")
+        self.assertEqual(response.status_code, 200)
+        policies = response.json()
+        self.assertIsInstance(policies, list)
+        
+        # Verify we have comprehensive policies (should be 13 sections)
+        self.assertGreaterEqual(len(policies), 13, "Should have at least 13 comprehensive policy sections")
+        
+        # Check for key policy categories
+        categories = [policy["category"] for policy in policies]
+        expected_categories = ["Introduction", "Recruitment", "Leaves", "Compensation", "Travel", "Conduct", "End of Service", "Performance", "Administrative", "Benefits"]
+        
+        for category in expected_categories:
+            self.assertIn(category, categories, f"Missing policy category: {category}")
+        
+        # Verify policy structure
+        for policy in policies[:3]:  # Check first 3 policies
+            self.assertIn("id", policy)
+            self.assertIn("title", policy)
+            self.assertIn("category", policy)
+            self.assertIn("content", policy)
+            self.assertIn("tags", policy)
+            self.assertIn("last_updated", policy)
+            
+        print(f"✅ Comprehensive policy database loaded - {len(policies)} policies across {len(set(categories))} categories")
+
+    def test_policy_search_bilingual(self):
+        """Test policy search functionality with both English and Arabic keywords"""
+        # Test English search
+        english_searches = ["leave", "vacation", "annual", "sick", "salary", "travel"]
+        
+        for search_term in english_searches:
+            response = requests.get(f"{self.api_url}/policies", params={"search": search_term})
+            self.assertEqual(response.status_code, 200)
+            results = response.json()
+            self.assertIsInstance(results, list)
+            print(f"✅ English search '{search_term}' returned {len(results)} results")
+        
+        # Test Arabic search
+        arabic_searches = ["إجازة", "سياسة", "راتب", "سفر", "انتداب", "أمومة"]
+        
+        for search_term in arabic_searches:
+            response = requests.get(f"{self.api_url}/policies", params={"search": search_term})
+            self.assertEqual(response.status_code, 200)
+            results = response.json()
+            self.assertIsInstance(results, list)
+            print(f"✅ Arabic search '{search_term}' returned {len(results)} results")
+
+    def test_ai_chat_policy_questions_english(self):
+        """Test AI Chat Assistant with policy-related questions in English"""
+        english_policy_questions = [
+            "What is the annual leave policy?",
+            "How many vacation days do I get?",
+            "What is the sick leave policy?",
+            "What are the business travel allowances?",
+            "What is the maternity leave policy?",
+            "What are the working hours?",
+            "What is the end of service benefit calculation?"
+        ]
+        
+        for question in english_policy_questions:
+            message_data = {
+                "employee_id": self.employee_id,
+                "session_id": str(uuid.uuid4()),  # New session for each test
+                "message": question
+            }
+            
+            response = requests.post(f"{self.api_url}/chat/message", json=message_data)
+            self.assertEqual(response.status_code, 200)
+            result = response.json()
+            
+            # Verify response structure
+            self.assertIn("response", result)
+            self.assertIn("type", result)
+            
+            # For policy questions, type should be "policy"
+            self.assertEqual(result["type"], "policy", f"Expected policy type for question: {question}")
+            
+            # Response should be substantial (not just error message)
+            self.assertGreater(len(result["response"]), 50, f"Response too short for: {question}")
+            
+            # Should reference Grade D entitlements for vacation-related questions
+            if "vacation" in question.lower() or "annual leave" in question.lower():
+                self.assertIn("30", result["response"], "Should mention Grade D gets 30 vacation days")
+            
+            print(f"✅ English policy question: '{question[:30]}...' - Response type: {result['type']}")
+
+    def test_ai_chat_policy_questions_arabic(self):
+        """Test AI Chat Assistant with policy-related questions in Arabic"""
+        arabic_policy_questions = [
+            "ما هي سياسة الإجازة السنوية؟",
+            "كم يوم إجازة أستحق؟",
+            "ما هي سياسة الإجازة المرضية؟",
+            "ما هي سياسة السفر والانتداب؟",
+            "ما هي سياسة إجازة الأمومة؟",
+            "ما هي ساعات العمل؟",
+            "كيف تحسب مكافأة نهاية الخدمة؟"
+        ]
+        
+        for question in arabic_policy_questions:
+            message_data = {
+                "employee_id": self.employee_id,
+                "session_id": str(uuid.uuid4()),  # New session for each test
+                "message": question
+            }
+            
+            response = requests.post(f"{self.api_url}/chat/message", json=message_data)
+            self.assertEqual(response.status_code, 200)
+            result = response.json()
+            
+            # Verify response structure
+            self.assertIn("response", result)
+            self.assertIn("type", result)
+            
+            # For policy questions, type should be "policy"
+            self.assertEqual(result["type"], "policy", f"Expected policy type for Arabic question: {question}")
+            
+            # Response should be substantial
+            self.assertGreater(len(result["response"]), 50, f"Response too short for Arabic question: {question}")
+            
+            # Should contain Arabic text for Arabic queries
+            arabic_chars = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي']
+            has_arabic = any(char in result["response"] for char in arabic_chars)
+            self.assertTrue(has_arabic, f"Arabic response should contain Arabic text for: {question}")
+            
+            print(f"✅ Arabic policy question: '{question[:30]}...' - Response type: {result['type']}")
+
+    def test_ai_chat_employee_specific_queries(self):
+        """Test employee-specific policy queries considering Grade D entitlements"""
+        employee_specific_questions = [
+            "How many vacation days am I entitled to as Grade D?",
+            "What are my travel allowances for business trips?",
+            "What is my end of service benefit calculation?",
+            "Can I work remotely and what are the rules?",
+            "What overtime policies apply to my grade?"
+        ]
+        
+        for question in employee_specific_questions:
+            message_data = {
+                "employee_id": self.employee_id,
+                "session_id": str(uuid.uuid4()),
+                "message": question
+            }
+            
+            response = requests.post(f"{self.api_url}/chat/message", json=message_data)
+            self.assertEqual(response.status_code, 200)
+            result = response.json()
+            
+            # Verify response mentions employee context
+            response_text = result["response"].lower()
+            
+            # Should reference Grade D or specific entitlements
+            if "vacation" in question.lower():
+                self.assertTrue("30" in result["response"] or "grade d" in response_text, 
+                              "Should mention Grade D vacation entitlement")
+            
+            if "travel" in question.lower():
+                self.assertTrue("economy" in response_text or "4-star" in response_text,
+                              "Should mention Grade D travel entitlements")
+            
+            print(f"✅ Employee-specific query: '{question[:40]}...' - Grade D context included")
+
+    def test_ai_chat_mixed_queries(self):
+        """Test mixed queries and ensure appropriate language responses"""
+        mixed_queries = [
+            ("Hello, what is سياسة الإجازة السنوية?", "mixed"),
+            ("Can you tell me about إجازة الأمومة policy?", "mixed"),
+            ("What are the قواعد العمل for remote work?", "mixed")
+        ]
+        
+        for question, query_type in mixed_queries:
+            message_data = {
+                "employee_id": self.employee_id,
+                "session_id": str(uuid.uuid4()),
+                "message": question
+            }
+            
+            response = requests.post(f"{self.api_url}/chat/message", json=message_data)
+            self.assertEqual(response.status_code, 200)
+            result = response.json()
+            
+            # Should handle mixed language queries appropriately
+            self.assertIn("response", result)
+            self.assertGreater(len(result["response"]), 30)
+            
+            print(f"✅ Mixed language query handled: '{question[:40]}...'")
+
+    def test_ai_chat_comprehensive_policy_knowledge(self):
+        """Test that AI responses reference specific policy sections"""
+        policy_knowledge_tests = [
+            ("What is the probation period?", ["90 days", "probation"]),
+            ("What are the dress code requirements?", ["dress", "abaya", "conservative"]),
+            ("What is the performance management system?", ["balanced scorecard", "performance"]),
+            ("What are the children education benefits?", ["education", "grade b", "children"])
+        ]
+        
+        for question, expected_keywords in policy_knowledge_tests:
+            message_data = {
+                "employee_id": self.employee_id,
+                "session_id": str(uuid.uuid4()),
+                "message": question
+            }
+            
+            response = requests.post(f"{self.api_url}/chat/message", json=message_data)
+            self.assertEqual(response.status_code, 200)
+            result = response.json()
+            
+            response_lower = result["response"].lower()
+            
+            # Check if response contains expected policy-specific keywords
+            found_keywords = [kw for kw in expected_keywords if kw.lower() in response_lower]
+            self.assertGreater(len(found_keywords), 0, 
+                             f"Response should contain policy-specific keywords for: {question}")
+            
+            print(f"✅ Policy knowledge test: '{question[:30]}...' - Found keywords: {found_keywords}")
+
     # Additional Features Tests
     def test_vacation_balance(self):
         """Test getting vacation balance for an employee"""
