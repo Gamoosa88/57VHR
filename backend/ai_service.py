@@ -57,32 +57,91 @@ class AIHRAssistant:
         return any(keyword in message_lower for keyword in policy_keywords)
     
     async def _query_custom_gpt(self, message: str, employee: Dict, context: str) -> str:
-        """Query the custom GPT for policy-related questions"""
+        """Query a custom GPT-like system for policy-related questions"""
+        
+        # Get all policies from database to provide comprehensive context
+        policies = await policies_collection.find().to_list(100)
+        
+        # Create comprehensive policy knowledge base
+        policy_knowledge = ""
+        for policy in policies:
+            policy_knowledge += f"\n=== {policy['title']} ({policy['category']}) ===\n"
+            policy_knowledge += f"{policy['content']}\n"
+            policy_knowledge += f"Tags: {', '.join(policy['tags'])}\n"
+            policy_knowledge += f"Last Updated: {policy['last_updated']}\n\n"
         
         # Enhanced message with employee context
         enhanced_message = f"""
-Employee Information:
+EMPLOYEE PROFILE:
 - Name: {employee['name']}
+- Employee ID: {employee.get('id', 'N/A')}
 - Grade: {employee['grade']}
 - Department: {employee['department']}
 - Title: {employee['title']}
+- Email: {employee.get('email', 'N/A')}
+- Manager: {employee.get('manager', 'N/A')}
 
-Current HR Status:
+CURRENT HR STATUS:
 {context}
 
-Question: {message}
+EMPLOYEE QUESTION: {message}
 """
         
         try:
-            # For custom GPTs, we need to use the chat completions API with the model parameter
-            # However, custom GPT IDs starting with 'g-' are for web interface, not API
-            # We'll fallback to using our policy database with enhanced responses
-            return await self._enhanced_policy_response(message, employee, context)
+            # Use OpenAI with comprehensive system prompt to simulate custom GPT behavior
+            response = openai.chat.completions.create(
+                model="gpt-4o",  # Using the latest model
+                messages=[
+                    {
+                        "role": "system",
+                        "content": f"""You are the 1957 Ventures HR Assistant, a specialized AI assistant trained specifically on 1957 Ventures' HR policies and procedures. You have comprehensive knowledge of the company's HR policies and provide expert-level assistance to employees.
+
+COMPANY: 1957 Ventures
+ROLE: Official HR Assistant AI
+
+=== COMPLETE HR POLICY KNOWLEDGE BASE ===
+{policy_knowledge}
+
+=== YOUR EXPERTISE AREAS ===
+- Leave policies (vacation, sick leave, emergency leave)
+- Compensation and benefits
+- Business travel policies and procedures
+- Work rules and conduct guidelines
+- Employee entitlements based on grade levels
+- HR process guidance and form assistance
+
+=== RESPONSE GUIDELINES ===
+1. Always provide accurate, policy-based answers using the knowledge base above
+2. Reference specific policy sections when applicable
+3. Consider the employee's grade level for entitlements (Grade D gets 30 days vacation, Grade C and below get 25 days)
+4. Be professional, helpful, and comprehensive
+5. If asked about processes, guide them through step-by-step procedures
+6. For policy clarifications, quote relevant sections
+7. Always suggest checking the Policy Center for complete details
+8. If information is not in the policies, clearly state so and suggest contacting HR directly
+
+=== IMPORTANT NOTES ===
+- Grade D employees: 30 vacation days per year
+- Grade C and below: 25 vacation days per year
+- All policy information above is the complete and authoritative source
+- Always maintain professional HR assistant tone
+- Provide specific, actionable guidance when possible"""
+                    },
+                    {
+                        "role": "user",
+                        "content": enhanced_message
+                    }
+                ],
+                max_tokens=1000,
+                temperature=0.2,  # Lower temperature for more consistent, policy-focused responses
+                top_p=0.9
+            )
+            
+            return response.choices[0].message.content
             
         except Exception as e:
-            print(f"Custom GPT query error: {str(e)}")
-            # Fallback to policy database
-            return await self._enhanced_policy_response(message, employee, context)
+            print(f"Custom GPT simulation error: {str(e)}")
+            raise e
     
     async def _enhanced_policy_response(self, message: str, employee: Dict, context: str) -> str:
         """Enhanced policy response using database policies with AI formatting"""
