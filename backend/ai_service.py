@@ -49,12 +49,22 @@ class AIHRAssistant:
             return await self._handle_regular_query(message, employee, context, session_id)
     
     def _is_policy_question(self, message: str) -> bool:
-        """Check if the message is asking about policies"""
+        """Check if the message is asking about policies (English and Arabic)"""
         policy_keywords = [
+            # English keywords
             'policy', 'policies', 'rule', 'rules', 'procedure', 'procedures',
             'leave policy', 'vacation policy', 'sick leave policy', 'travel policy',
             'compensation policy', 'salary policy', 'work rules', 'conduct',
-            'what is the policy', 'policy on', 'company policy', 'hr policy'
+            'what is the policy', 'policy on', 'company policy', 'hr policy',
+            'annual leave', 'sick leave', 'maternity leave', 'business travel',
+            'end of service', 'performance management', 'recruitment',
+            
+            # Arabic keywords
+            'سياسة', 'سياسات', 'قواعد', 'قانون', 'إجراءات', 'لوائح',
+            'إجازة', 'إجازات', 'إجازة سنوية', 'إجازة مرضية', 'إجازة أمومة',
+            'انتداب', 'سفر', 'راتب', 'رواتب', 'مزايا', 'تعويضات',
+            'نهاية الخدمة', 'مكافأة', 'توظيف', 'تطوير', 'أداء',
+            'ما هي السياسة', 'سياسة الشركة', 'قواعد العمل'
         ]
         message_lower = message.lower()
         return any(keyword in message_lower for keyword in policy_keywords)
