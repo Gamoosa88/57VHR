@@ -296,7 +296,9 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Comprehensive HR Policy Integration"
+    - "AI Chat Assistant Integration"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
