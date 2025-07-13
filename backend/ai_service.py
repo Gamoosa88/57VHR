@@ -1,7 +1,7 @@
 import os
 import asyncio
 from typing import Dict, Any
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+import openai
 from database import employees_collection, vacation_balances_collection, hr_requests_collection, policies_collection, salary_payments_collection
 
 class AIHRAssistant:
@@ -9,9 +9,13 @@ class AIHRAssistant:
         self.api_key = os.environ.get('OPENAI_API_KEY')
         if not self.api_key:
             raise ValueError("OpenAI API key not found in environment variables")
+        
+        # Initialize OpenAI client
+        openai.api_key = self.api_key
+        self.custom_gpt_id = "g-685d53e450208191992ef69c0eb2d63c-1957v-hr-assistant"
     
     async def generate_response(self, message: str, employee_id: str, session_id: str) -> Dict[str, Any]:
-        """Generate AI response using OpenAI and context from database"""
+        """Generate AI response using custom GPT and context from database"""
         
         # Get employee context
         employee = await employees_collection.find_one({"id": employee_id})
@@ -24,8 +28,100 @@ class AIHRAssistant:
         # Build context with employee data
         context = await self._build_employee_context(employee_id, employee)
         
-        # Initialize chat with system message containing HR policies and employee context
-        system_message = f"""You are an AI HR Assistant for 1957 Ventures company. You help employees with HR-related questions, policy information, and can assist with form submissions.
+        # Check if this is a policy-related question
+        if self._is_policy_question(message):
+            try:
+                # Use custom GPT for policy questions
+                response = await self._query_custom_gpt(message, employee, context)
+                return {
+                    "response": response,
+                    "type": "policy"
+                }
+            except Exception as e:
+                print(f"Custom GPT Error: {str(e)}")
+                # Fallback to policy retrieval from database
+                return await self._handle_policy_fallback(message, employee_id, context)
+        else:
+            # Use regular OpenAI for non-policy questions
+            return await self._handle_regular_query(message, employee, context, session_id)
+    
+    def _is_policy_question(self, message: str) -> bool:
+        """Check if the message is asking about policies"""
+        policy_keywords = [
+            'policy', 'policies', 'rule', 'rules', 'procedure', 'procedures',
+            'leave policy', 'vacation policy', 'sick leave policy', 'travel policy',
+            'compensation policy', 'salary policy', 'work rules', 'conduct',
+            'what is the policy', 'policy on', 'company policy', 'hr policy'
+        ]
+        message_lower = message.lower()
+        return any(keyword in message_lower for keyword in policy_keywords)
+    
+    async def _query_custom_gpt(self, message: str, employee: Dict, context: str) -> str:
+        """Query the custom GPT for policy-related questions"""
+        
+        # Create a thread for the conversation
+        thread = openai.beta.threads.create()
+        
+        # Add employee context to the message
+        enhanced_message = f"""
+Employee Information:
+- Name: {employee['name']}
+- Grade: {employee['grade']}
+- Department: {employee['department']}
+- Title: {employee['title']}
+
+Current HR Status:
+{context}
+
+Question: {message}
+"""
+        
+        # Add the message to the thread
+        openai.beta.threads.messages.create(
+            thread_id=thread.id,
+            role="user",
+            content=enhanced_message
+        )
+        
+        # Run the assistant
+        run = openai.beta.threads.runs.create(
+            thread_id=thread.id,
+            assistant_id=self.custom_gpt_id
+        )
+        
+        # Wait for completion
+        while run.status in ['queued', 'in_progress', 'cancelling']:
+            await asyncio.sleep(1)
+            run = openai.beta.threads.runs.retrieve(
+                thread_id=thread.id,
+                run_id=run.id
+            )
+        
+        if run.status == 'completed':
+            # Get the messages
+            messages = openai.beta.threads.messages.list(
+                thread_id=thread.id
+            )
+            
+            # Return the assistant's response
+            for message in messages.data:
+                if message.role == "assistant":
+                    return message.content[0].text.value
+            
+            return "I couldn't get a proper response from the policy assistant. Please try again or contact HR directly."
+        else:
+            raise Exception(f"Assistant run failed with status: {run.status}")
+    
+    async def _handle_regular_query(self, message: str, employee: Dict, context: str, session_id: str) -> Dict[str, Any]:
+        """Handle non-policy questions with regular OpenAI"""
+        try:
+            # Use direct OpenAI API for non-policy questions
+            response = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": f"""You are an AI HR Assistant for 1957 Ventures company. You help employees with HR-related questions and can assist with form submissions.
 
 Employee Information:
 - Name: {employee['name']}
@@ -36,48 +132,33 @@ Employee Information:
 Current HR Status:
 {context}
 
-HR Policies Summary:
-- Grade D employees get 30 vacation days per year
-- Grade C and below get 25 vacation days per year
-- Sick leave: First 30 days full salary, next 60 days 3/4 salary, next 30 days no salary
-- Business travel allowances: 200-400 SAR domestic, 300-600 SAR international based on grade
-- Remote work: Maximum 2 days per month, manager approval required
-- Working hours: Sunday-Thursday, 8 hours/day, 7:30/8:30 AM to 4:30/5:30 PM
-
 Instructions:
-1. Answer HR questions accurately based on the policies
+1. Answer HR questions accurately
 2. Be helpful and professional
 3. For specific requests like "request sick leave", guide them to submit a formal request
 4. Always reference actual data when available
 5. Keep responses concise but informative
-6. If you don't know something, be honest and suggest contacting HR directly"""
-
-        try:
-            # Create chat instance
-            chat = LlmChat(
-                api_key=self.api_key,
-                session_id=session_id,
-                system_message=system_message
-            ).with_model("openai", "gpt-4o").with_max_tokens(500)
+6. For policy questions, suggest checking the Policy Center
+7. If you don't know something, be honest and suggest contacting HR directly"""
+                    },
+                    {
+                        "role": "user",
+                        "content": message
+                    }
+                ],
+                max_tokens=500,
+                temperature=0.7
+            )
             
-            # Create user message
-            user_message = UserMessage(text=message)
-            
-            # Get AI response
-            ai_response = await chat.send_message(user_message)
-            
-            # Determine response type based on content
             response_type = self._determine_response_type(message)
-            
             return {
-                "response": ai_response,
+                "response": response.choices[0].message.content,
                 "type": response_type
             }
             
         except Exception as e:
-            print(f"AI Service Error: {str(e)}")
-            # Fallback to rule-based responses
-            return await self._fallback_response(message, employee_id, context)
+            print(f"Regular AI Service Error: {str(e)}")
+            return await self._fallback_response(message, employee['id'], context)
     
     async def _build_employee_context(self, employee_id: str, employee: Dict) -> str:
         """Build context string with employee's current HR status"""
