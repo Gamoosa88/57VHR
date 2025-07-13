@@ -312,3 +312,5 @@ agent_communication:
     message: "Completed comprehensive frontend testing. Most components are working correctly: Dashboard, HR Services, and AI Chat Assistant all function properly with real data. The Policy Center component has issues - it shows 'Failed to load policies' error and console logs show API errors related to policy not found. This component needs fixing. All other frontend-backend integrations are working as expected."
   - agent: "main"
     message: "Fixed Policy Center issue. The problem was FastAPI route ordering - the '/policies/{policy_id}' route was matching before '/policies/categories', causing 'categories' to be treated as a policy_id. Moved categories route before parameterized route. All endpoints now working correctly."
+  - agent: "main"
+    message: "Integrated comprehensive 1957 Ventures HR policy document with 13 detailed policy sections. Enhanced AI Chat Assistant with bilingual support (English/Arabic) and improved policy detection. Database now contains complete HR policies covering all major areas. Ready for testing of enhanced policy-aware AI responses."
