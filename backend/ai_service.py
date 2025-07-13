@@ -59,10 +59,7 @@ class AIHRAssistant:
     async def _query_custom_gpt(self, message: str, employee: Dict, context: str) -> str:
         """Query the custom GPT for policy-related questions"""
         
-        # Create a thread for the conversation
-        thread = openai.beta.threads.create()
-        
-        # Add employee context to the message
+        # Enhanced message with employee context
         enhanced_message = f"""
 Employee Information:
 - Name: {employee['name']}
@@ -76,41 +73,73 @@ Current HR Status:
 Question: {message}
 """
         
-        # Add the message to the thread
-        openai.beta.threads.messages.create(
-            thread_id=thread.id,
-            role="user",
-            content=enhanced_message
-        )
-        
-        # Run the assistant
-        run = openai.beta.threads.runs.create(
-            thread_id=thread.id,
-            assistant_id=self.custom_gpt_id
-        )
-        
-        # Wait for completion
-        while run.status in ['queued', 'in_progress', 'cancelling']:
-            await asyncio.sleep(1)
-            run = openai.beta.threads.runs.retrieve(
-                thread_id=thread.id,
-                run_id=run.id
-            )
-        
-        if run.status == 'completed':
-            # Get the messages
-            messages = openai.beta.threads.messages.list(
-                thread_id=thread.id
+        try:
+            # For custom GPTs, we need to use the chat completions API with the model parameter
+            # However, custom GPT IDs starting with 'g-' are for web interface, not API
+            # We'll fallback to using our policy database with enhanced responses
+            return await self._enhanced_policy_response(message, employee, context)
+            
+        except Exception as e:
+            print(f"Custom GPT query error: {str(e)}")
+            # Fallback to policy database
+            return await self._enhanced_policy_response(message, employee, context)
+    
+    async def _enhanced_policy_response(self, message: str, employee: Dict, context: str) -> str:
+        """Enhanced policy response using database policies with AI formatting"""
+        try:
+            # Get all policies from database
+            policies = await policies_collection.find().to_list(100)
+            
+            # Create a comprehensive policy context
+            policy_context = ""
+            for policy in policies:
+                policy_context += f"\n**{policy['title']}** ({policy['category']}):\n{policy['content']}\n\n"
+            
+            # Use OpenAI to format response based on policies
+            response = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": f"""You are the 1957 Ventures HR Assistant with access to comprehensive company policies. 
+                        
+You must answer policy questions using ONLY the information from the company policies provided below. Do not make up information or policies.
+
+Company HR Policies:
+{policy_context}
+
+Employee Context:
+- Name: {employee['name']}
+- Grade: {employee['grade']} 
+- Department: {employee['department']}
+- Title: {employee['title']}
+
+Current HR Status:
+{context}
+
+Instructions:
+1. Answer policy questions accurately using only the provided policy information
+2. Reference specific policy sections when relevant
+3. Be helpful and professional
+4. If asking about specific entitlements, check the employee's grade
+5. Keep responses concise but comprehensive
+6. If you cannot find the specific policy information, say so clearly"""
+                    },
+                    {
+                        "role": "user",
+                        "content": message
+                    }
+                ],
+                max_tokens=800,
+                temperature=0.3
             )
             
-            # Return the assistant's response
-            for message in messages.data:
-                if message.role == "assistant":
-                    return message.content[0].text.value
+            return response.choices[0].message.content
             
-            return "I couldn't get a proper response from the policy assistant. Please try again or contact HR directly."
-        else:
-            raise Exception(f"Assistant run failed with status: {run.status}")
+        except Exception as e:
+            print(f"Enhanced policy response error: {str(e)}")
+            # Final fallback to basic policy search
+            return await self._basic_policy_search(message)
     
     async def _handle_regular_query(self, message: str, employee: Dict, context: str, session_id: str) -> Dict[str, Any]:
         """Handle non-policy questions with regular OpenAI"""
