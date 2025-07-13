@@ -190,16 +190,14 @@ Instructions:
             return await self._fallback_response(message, employee['id'], context)
     
     
-    async def _handle_policy_fallback(self, message: str, employee_id: str, context: str) -> Dict[str, Any]:
-        """Fallback for policy questions when custom GPT fails"""
+    
+    async def _basic_policy_search(self, message: str) -> str:
+        """Basic policy search fallback"""
         try:
-            # Try to find relevant policies from database
             policies = await policies_collection.find().to_list(100)
-            
-            # Simple keyword matching for policies
             message_lower = message.lower()
-            relevant_policies = []
             
+            relevant_policies = []
             for policy in policies:
                 if any(keyword in message_lower for keyword in ['leave', 'vacation', 'sick']) and policy['category'] == 'Leaves':
                     relevant_policies.append(policy)
@@ -211,23 +209,26 @@ Instructions:
                     relevant_policies.append(policy)
             
             if relevant_policies:
-                policy_info = []
-                for policy in relevant_policies[:2]:  # Limit to 2 most relevant
-                    policy_info.append(f"**{policy['title']}**: {policy['content'][:200]}...")
-                
-                response = f"Here's what I found in our policies:\n\n" + "\n\n".join(policy_info)
-                response += "\n\nFor complete policy details, please check the Policy Center."
-                
-                return {
-                    "response": response,
-                    "type": "policy"
-                }
+                response = "Here's what I found in our company policies:\n\n"
+                for policy in relevant_policies[:2]:
+                    response += f"**{policy['title']}**:\n{policy['content'][:300]}...\n\n"
+                response += "For complete policy details, please check the Policy Center."
+                return response
             else:
-                return {
-                    "response": "I couldn't find specific policy information for your question. Please check the Policy Center or contact HR for detailed policy information.",
-                    "type": "policy"
-                }
+                return "I couldn't find specific policy information for your question. Please check the Policy Center or contact HR for detailed policy information."
                 
+        except Exception as e:
+            print(f"Basic policy search error: {str(e)}")
+            return "I'm having trouble accessing policy information right now. Please check the Policy Center or contact HR directly."
+    
+    async def _handle_policy_fallback(self, message: str, employee_id: str, context: str) -> Dict[str, Any]:
+        """Fallback for policy questions when custom GPT fails"""
+        try:
+            response_text = await self._basic_policy_search(message)
+            return {
+                "response": response_text,
+                "type": "policy"
+            }
         except Exception as e:
             print(f"Policy fallback error: {str(e)}")
             return await self._fallback_response(message, employee_id, context)
