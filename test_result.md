@@ -159,7 +159,7 @@ backend:
     file: "backend/ai_service.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
@@ -173,6 +173,9 @@ backend:
       - working: "NA"
         agent: "main"
         comment: "Updated to use OpenAI Assistant API with custom trained HR assistant (asst_Dwo2hqfJhI6GfD31YGt6bcrJ). Policy questions now trigger the specialized assistant for accurate HR policy responses."
+      - working: true
+        agent: "testing"
+        comment: "OpenAI Assistant API integration tested and working correctly. All specific HR policy questions (annual leave, vacation days for Grade D, sick leave, business travel allowances, maternity leave) successfully trigger the Assistant API (asst_Dwo2hqfJhI6GfD31YGt6bcrJ). Employee context (Grade D, Technology department) is properly included in queries. Assistant provides detailed, accurate HR policy responses. Fallback behavior works correctly. Non-policy questions continue to use regular OpenAI chat completions. Enhanced policy detection keywords to improve question classification."
 
   - task: "Policy Management System"
     implemented: true
