@@ -540,8 +540,15 @@ if __name__ == "__main__":
     test_suite.addTest(HRHubBackendTests('test_get_policy_by_id'))
     test_suite.addTest(HRHubBackendTests('test_get_policies_with_filters'))
     
-    # AI Chat Assistant
+    # AI Chat Assistant - Comprehensive Testing
+    test_suite.addTest(HRHubBackendTests('test_comprehensive_policy_database'))
+    test_suite.addTest(HRHubBackendTests('test_policy_search_bilingual'))
     test_suite.addTest(HRHubBackendTests('test_chat_message_and_history'))
+    test_suite.addTest(HRHubBackendTests('test_ai_chat_policy_questions_english'))
+    test_suite.addTest(HRHubBackendTests('test_ai_chat_policy_questions_arabic'))
+    test_suite.addTest(HRHubBackendTests('test_ai_chat_employee_specific_queries'))
+    test_suite.addTest(HRHubBackendTests('test_ai_chat_mixed_queries'))
+    test_suite.addTest(HRHubBackendTests('test_ai_chat_comprehensive_policy_knowledge'))
     
     # Additional Features
     test_suite.addTest(HRHubBackendTests('test_vacation_balance'))
