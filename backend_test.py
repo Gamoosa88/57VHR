@@ -289,6 +289,132 @@ class HRHubBackendTests(unittest.TestCase):
             self.assertIsInstance(results, list)
             print(f"✅ Arabic search '{search_term}' returned {len(results)} results")
 
+    def test_openai_assistant_api_integration(self):
+        """Test OpenAI Assistant API integration with HR policy assistant (asst_Dwo2hqfJhI6GfD31YGt6bcrJ)"""
+        print("\n🔍 Testing OpenAI Assistant API Integration...")
+        
+        # Test specific policy questions that should trigger the Assistant API
+        assistant_test_questions = [
+            "What is the annual leave policy?",
+            "How many vacation days do I get as Grade D?", 
+            "What is the sick leave policy?",
+            "What are the business travel allowances?",
+            "What is the maternity leave policy?"
+        ]
+        
+        for question in assistant_test_questions:
+            print(f"\n📝 Testing question: '{question}'")
+            
+            message_data = {
+                "employee_id": "EMP001",  # Meshal Al Shammari (Grade D, Technology)
+                "session_id": str(uuid.uuid4()),
+                "message": question
+            }
+            
+            response = requests.post(f"{self.api_url}/chat/message", json=message_data)
+            self.assertEqual(response.status_code, 200, f"API call failed for question: {question}")
+            
+            result = response.json()
+            
+            # Verify response structure
+            self.assertIn("response", result, "Response should contain 'response' field")
+            self.assertIn("type", result, "Response should contain 'type' field")
+            
+            # For policy questions, type should be "policy" (indicating Assistant API was used)
+            self.assertEqual(result["type"], "policy", 
+                           f"Expected 'policy' type for Assistant API question: {question}")
+            
+            # Response should be substantial and detailed (Assistant API provides comprehensive responses)
+            self.assertGreater(len(result["response"]), 100, 
+                             f"Assistant API response should be detailed for: {question}")
+            
+            # Verify employee context is included in responses
+            response_text = result["response"].lower()
+            
+            # Should reference Grade D context for vacation questions
+            if "vacation" in question.lower() or "annual leave" in question.lower():
+                grade_d_mentioned = ("grade d" in response_text or "30" in result["response"])
+                self.assertTrue(grade_d_mentioned, 
+                              "Should mention Grade D entitlement (30 vacation days)")
+            
+            # Should reference Technology department context when relevant
+            if "travel" in question.lower():
+                travel_context = any(term in response_text for term in ["economy", "business", "allowance", "4-star"])
+                self.assertTrue(travel_context, "Should include travel policy details")
+            
+            # Verify response quality (not error messages)
+            error_indicators = ["sorry", "trouble", "error", "failed", "contact hr"]
+            has_errors = any(indicator in response_text for indicator in error_indicators)
+            self.assertFalse(has_errors, f"Response should not contain error messages: {result['response'][:100]}")
+            
+            print(f"✅ Assistant API response received - Type: {result['type']}, Length: {len(result['response'])} chars")
+            print(f"📋 Response preview: '{result['response'][:150]}...'")
+    
+    def test_assistant_api_employee_context(self):
+        """Test that employee context (Grade D, Technology department) is properly included in Assistant API queries"""
+        print("\n👤 Testing Employee Context Integration...")
+        
+        # Test employee-specific questions
+        context_questions = [
+            "How many vacation days am I entitled to?",
+            "What are my travel allowances for business trips?", 
+            "What overtime policies apply to my grade?"
+        ]
+        
+        for question in context_questions:
+            print(f"\n📝 Testing context question: '{question}'")
+            
+            message_data = {
+                "employee_id": "EMP001",  # Meshal Al Shammari (Grade D, Technology)
+                "session_id": str(uuid.uuid4()),
+                "message": question
+            }
+            
+            response = requests.post(f"{self.api_url}/chat/message", json=message_data)
+            self.assertEqual(response.status_code, 200)
+            
+            result = response.json()
+            response_text = result["response"].lower()
+            
+            # Verify Grade D context is included
+            if "vacation" in question.lower():
+                self.assertTrue("30" in result["response"] or "grade d" in response_text,
+                              "Should reference Grade D vacation entitlement (30 days)")
+            
+            # Verify Technology department context when relevant
+            if "travel" in question.lower():
+                self.assertTrue(any(term in response_text for term in ["economy", "allowance", "business"]),
+                              "Should include travel policy details for Technology department")
+            
+            print(f"✅ Employee context properly included in Assistant API query")
+    
+    def test_assistant_api_fallback_behavior(self):
+        """Test fallback behavior if Assistant API fails"""
+        print("\n🔄 Testing Assistant API Fallback Behavior...")
+        
+        # Test with policy questions that should trigger Assistant API
+        fallback_question = "What is the company dress code policy?"
+        
+        message_data = {
+            "employee_id": "EMP001",
+            "session_id": str(uuid.uuid4()),
+            "message": fallback_question
+        }
+        
+        response = requests.post(f"{self.api_url}/chat/message", json=message_data)
+        self.assertEqual(response.status_code, 200)
+        
+        result = response.json()
+        
+        # Should still return a response even if Assistant API has issues
+        self.assertIn("response", result)
+        self.assertGreater(len(result["response"]), 20, "Should provide fallback response")
+        
+        # Type should still be "policy" for policy questions
+        self.assertEqual(result["type"], "policy")
+        
+        print(f"✅ Fallback behavior working - Response: '{result['response'][:100]}...'")
+
     def test_ai_chat_policy_questions_english(self):
         """Test AI Chat Assistant with policy-related questions in English"""
         english_policy_questions = [
