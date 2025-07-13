@@ -19,10 +19,15 @@ sessions_collection = db.sessions
 async def init_database():
     """Initialize database with sample data"""
     
-    # Check if we already have data
+    # Check if we already have employee data
     employee_count = await employees_collection.count_documents({})
-    if employee_count > 0:
-        return  # Database already initialized
+    
+    # Check if we already have policy data  
+    policy_count = await policies_collection.count_documents({})
+    
+    # If both exist, skip initialization
+    if employee_count > 0 and policy_count > 0:
+        return  # Database already fully initialized
     
     # Create sample employee
     sample_employee = {
