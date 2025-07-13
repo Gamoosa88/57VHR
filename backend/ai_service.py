@@ -172,6 +172,30 @@ Question: {message}
             # Fallback to basic policy search
             return await self._basic_policy_search(message)
     
+    async def _basic_policy_search(self, message: str) -> str:
+        """Basic fallback policy search when Assistant API fails"""
+        try:
+            # Simple fallback using regular OpenAI chat completion
+            response = openai.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful HR assistant. Provide general HR guidance and suggest contacting HR directly for specific policy questions."
+                    },
+                    {
+                        "role": "user", 
+                        "content": message
+                    }
+                ],
+                max_tokens=500,
+                temperature=0.3
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"Fallback error: {str(e)}")
+            return "I'm experiencing technical difficulties. Please contact HR directly for assistance with your question."
+    
     async def _enhanced_policy_response(self, message: str, employee: Dict, context: str) -> str:
         """Enhanced policy response using database policies with AI formatting"""
         try:
